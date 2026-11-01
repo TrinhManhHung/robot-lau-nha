@@ -50,10 +50,10 @@
 #define MOTOR_RIGHT_TRIM 1.00f
 
 // PWM toi thieu de motor bat dau quay (vung chet). Can chinh theo motor thuc te.
-#define MOTOR_MIN_PWM  90
+#define MOTOR_MIN_PWM  50
 // "Moi" motor khi khoi dong tu dung yen / doi chieu
-#define MOTOR_KICK_PWM 230
-#define MOTOR_KICK_MS  300
+#define MOTOR_KICK_PWM 150
+#define MOTOR_KICK_MS  100
 
 // Tang/giam toc tu tu: moi MOTOR_RAMP_INTERVAL_MS thay doi MOTOR_RAMP_STEP
 #define MOTOR_RAMP_INTERVAL_MS 10
@@ -65,13 +65,13 @@
 
 // Neu motor khong quay noi -> tang MOTOR_MIN_PWM; muon cham hon -> giam SPEED_CRUISE
 // (gia tri nho hon MOTOR_MIN_PWM se tu dong duoc nang len MOTOR_MIN_PWM)
-#define SPEED_CRUISE  120   // chay thang binh thuong (cham de hut bui)
-#define SPEED_SLOW    105   // khi phia truoc co vat can o gan
+#define SPEED_CRUISE   58   // chay thang binh thuong (cham de hut bui)
+#define SPEED_SLOW     50   // khi phia truoc co vat can o gan
 // Lui/quay chi dien ra ngan khi tranh vat can -> can luc manh hon di thang
 // (quay tai cho banh bi truot ngang nen ton luc nhat)
-#define SPEED_TURN    140   // quay tai cho
-#define SPEED_BACK    120   // lui
-#define SPEED_MANUAL  120   // dieu khien tay
+#define SPEED_TURN     60   // quay tai cho
+#define SPEED_BACK     50   // lui
+#define SPEED_MANUAL   58   // dieu khien tay
 
 #define STEER_FACTOR  0.85f // banh phia trong khi lach tranh tuong
 
@@ -141,6 +141,28 @@
 // Gap vat can STUCK_COUNT lan trong STUCK_WINDOW_MS -> coi nhu ket goc
 #define STUCK_COUNT      4
 #define STUCK_WINDOW_MS  6000
+
+// ============================================================
+//  WIFI / MQTT (backend) - SSID/mat khau WiFi nam trong secrets.h
+// ============================================================
+
+#define WIFI_RETRY_MS        10000
+
+#define MQTT_BROKER_IP       "10.1.0.49"
+#define MQTT_BROKER_PORT     1883
+#define MQTT_ROBOT_ID        3                  // phai trung id robot trong database backend
+#define MQTT_TOPIC_PREFIX    "robot-vacuum/v1"  // = app.mqtt.topic-prefix cua backend
+#define MQTT_RETRY_MS        5000
+// Mo TCP toi broker toi da bao lau (loop() bi chan trong luc nay -> de ngan)
+#define MQTT_CONNECT_TIMEOUT_MS 500
+#define MQTT_KEEPALIVE_S     15
+// Backend coi telemetry cu hon 30 s la mat ket noi
+#define MQTT_TELEMETRY_INTERVAL_MS 2000
+
+// Telemetry can gio UTC that (sentAt). Khong co Internet -> dat NTP server trong LAN.
+// Chua dong bo duoc NTP thi lay gio tu issuedAt cua lenh dau tien backend gui xuong.
+#define NTP_SERVER_1         "pool.ntp.org"
+#define NTP_SERVER_2         "time.google.com"
 
 // ============================================================
 //  KHAC

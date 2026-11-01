@@ -6,6 +6,8 @@
 //   x : dung
 //   w/s/a/d : dieu khien tay tien / lui / trai / phai
 //   i : bat/tat in thong tin cam bien
+//
+// Dieu khien tu xa qua MQTT (backend): xem mqtt_client.cpp, cau hinh trong config.h / secrets.h
 
 #include <esp_system.h>
 #include "config.h"
@@ -14,6 +16,8 @@
 #include "sensors.h"
 #include "navigation.h"
 #include "battery.h"
+#include "wifi_manager.h"
+#include "mqtt_client.h"
 
 static bool debugEnabled = true;
 static uint32_t lastDebugMs = 0;
@@ -47,6 +51,12 @@ static void handleSerial() {
   }
 }
 
+// Lenh tu backend ghi de lenh tu chay luc khoi dong (giong khi go lenh qua Serial)
+static void onRemoteCommand() {
+  autoStartPending = false;
+  rtcResumeCount = 0;
+}
+
 static void printDebug() {
   uint32_t now = millis();
   if (!debugEnabled || now - lastDebugMs < DEBUG_INTERVAL_MS) return;
@@ -54,12 +64,12 @@ static void printDebug() {
 
   const Distances& d = sensorsGet();
   const CliffState& c = sensorsCliff();
-  Serial.printf("L=%5.1f C=%5.1f R=%5.1f cm | Roi=%s D0=%d | %s/%s | motor L=%4d R=%4d | Pin %.2fV %u%%\n",
+  Serial.printf("L=%5.1f C=%5.1f R=%5.1f cm | Roi=%s D0=%d | %s/%s | motor L=%4d R=%4d | Pin %.2fV %u%% | MQTT %s\n",
                 d.left, d.center, d.right,
                 c.detected ? "CO" : "--", digitalRead(PIN_CLIFF_DO),
                 navModeName(navGetMode()), navStateName(navGetState()),
                 motorGetLeft(), motorGetRight(),
-                batteryVoltage(), batteryPercent());
+                batteryVoltage(), batteryPercent(), mqttConnected() ? "OK" : "--");
 }
 
 void setup() {
@@ -94,6 +104,8 @@ void setup() {
   navInit();
   batteryInit();
   Serial.printf("Pin: %.2fV (%u%%)\n", batteryVoltage(), batteryPercent());
+  wifiInit();
+  mqttInit(onRemoteCommand);
 
   Serial.println("Lenh: g=AUTO, x=dung, w/s/a/d=dieu khien tay, i=bat/tat debug");
 }
@@ -110,6 +122,8 @@ void loop() {
   batteryUpdate();
   navUpdate();
   motorUpdate();
+  wifiUpdate();
+  mqttUpdate();
   printDebug();
 
   rtcAutoMagic = navGetMode() == MODE_AUTO ? AUTO_MAGIC : 0;
