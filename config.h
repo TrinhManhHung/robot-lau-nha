@@ -75,6 +75,11 @@
 
 #define STEER_FACTOR  0.85f // banh phia trong khi lach tranh tuong
 
+// Dieu khien tay tu xa (app nhan giu D-pad): app gui lai lenh MOVE moi ~250 ms.
+// Qua thoi gian nay khong nhan duoc MOVE moi -> tu dung (mat mang, app bi tat, tha nut...).
+// Lenh tay qua Serial (w/a/s/d) khong bi gioi han thoi gian.
+#define MANUAL_REMOTE_TIMEOUT_MS 800
+
 // ============================================================
 //  CAM BIEN SIEU AM
 // ============================================================

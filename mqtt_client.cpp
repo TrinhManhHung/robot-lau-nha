@@ -195,7 +195,8 @@ const char* applyCommand(const char* action, const char* mode, const char* dir, 
   if (!strcmp(action, "MOVE")) {
     ManualCmd cmd;
     if (!parseDirection(dir, cmd)) return "invalid direction";
-    navManual(cmd);
+    // App nhan giu D-pad gui lai MOVE lien tuc; ngung gui -> robot tu dung
+    navManual(cmd, MANUAL_REMOTE_TIMEOUT_MS);
     return nullptr;
   }
   if (!strcmp(action, "STOP_MOVEMENT")) {
@@ -250,7 +251,9 @@ void handleCommand(const uint8_t* payload, unsigned int len) {
   publishAck(id, err ? "REJECTED" : "APPLIED", err);
 
   if (commandHook) commandHook();
-  lastTelemetryMs = 0;  // bao trang thai moi ngay o lan mqttUpdate() ke tiep
+  // Bao trang thai moi ngay o lan mqttUpdate() ke tiep. MOVE duoc lap lai ~4 lan/giay khi nhan giu
+  // D-pad -> khong ep gui telemetry moi lan (doi che do da duoc phat hien rieng qua lastSentMode).
+  if (strcmp(action, "MOVE") != 0) lastTelemetryMs = 0;
 }
 
 void onMessage(char* topic, uint8_t* payload, unsigned int len) {
