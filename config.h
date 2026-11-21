@@ -34,6 +34,10 @@
 // GPIO34 thuoc ADC1 nen van doc duoc khi bat WiFi.
 #define PIN_BATT_SENSE 34
 
+// --- Relay quat hut + 2 choi quet (nguon 12V tu pin 3S qua cau chi) ---
+// IN cua relay -> D17. VCC/GND relay -> nguon module + GND chung voi ESP32.
+#define PIN_CLEANING_RELAY 17
+
 // ============================================================
 //  DONG CO
 // ============================================================
@@ -74,6 +78,25 @@
 #define SPEED_MANUAL   58   // dieu khien tay
 
 #define STEER_FACTOR  0.85f // banh phia trong khi lach tranh tuong
+
+// Dieu khien tay tu xa (app nhan giu D-pad): app gui lai lenh MOVE moi ~250 ms.
+// Qua thoi gian nay khong nhan duoc MOVE moi -> tu dung (mat mang, app bi tat, tha nut...).
+// Lenh tay qua Serial (w/a/s/d) khong bi gioi han thoi gian.
+#define MANUAL_REMOTE_TIMEOUT_MS 800
+
+// ============================================================
+//  QUAT HUT + CHOI QUET (relay)
+// ============================================================
+
+// Muc logic tai IN lam relay DONG. Phan lon module relay 1 kenh co opto kich muc THAP (LOW);
+// module co jumper H/L thi theo vi tri jumper. Neu relay bat khi robot dung -> doi gia tri nay.
+#define CLEANING_RELAY_ACTIVE_LEVEL HIGH
+// true: dieu khien tay (MANUAL) cung bat quat + choi; false: chi bat khi chay AUTO
+#define CLEANING_IN_MANUAL   true
+// Bat relay sau khi robot bat dau chay bay nhieu ms (khong de dong khoi dong cung luc voi banh xe)
+#define CLEANING_ON_DELAY_MS 500
+// Sau khi tat, phai cho it nhat bay nhieu ms moi bat lai (bao ve tiep diem relay)
+#define CLEANING_MIN_OFF_MS  1500
 
 // ============================================================
 //  CAM BIEN SIEU AM
@@ -148,7 +171,7 @@
 
 #define WIFI_RETRY_MS        10000
 
-#define MQTT_BROKER_IP       "10.1.0.49"
+#define MQTT_BROKER_IP       "10.1.0.223"
 #define MQTT_BROKER_PORT     1883
 #define MQTT_ROBOT_ID        3                  // phai trung id robot trong database backend
 #define MQTT_TOPIC_PREFIX    "robot-vacuum/v1"  // = app.mqtt.topic-prefix cua backend

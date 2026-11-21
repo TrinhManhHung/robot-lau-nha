@@ -17,6 +17,9 @@ bool cliffEvent = false;
 uint32_t lastCliffMs = 0;
 
 ManualCmd manualCmd = MANUAL_STOP;
+// Lenh tay tu xa: het han neu khong duoc lap lai (0 = khong gioi han)
+uint32_t manualCmdMs = 0;
+uint32_t manualTimeoutMs = 0;
 
 // Lich su cac lan gap vat can de phat hien bi ket trong goc
 uint32_t obstacleTimes[STUCK_COUNT] = {0};
@@ -158,7 +161,14 @@ void updateAuto(const Distances& d, bool cliff, uint32_t now) {
   }
 }
 
-void updateManual(const Distances& d, bool cliff) {
+void updateManual(const Distances& d, bool cliff, uint32_t now) {
+  if (manualCmd != MANUAL_STOP && manualTimeoutMs > 0 && now - manualCmdMs >= manualTimeoutMs) {
+    manualCmd = MANUAL_STOP;
+    manualTimeoutMs = 0;
+    motorBrake();
+    Serial.println("[NAV] Dieu khien tay: khong nhan lenh MOVE moi -> tu dung");
+  }
+
   switch (manualCmd) {
     case MANUAL_FORWARD:
       if (cliff) {
@@ -195,7 +205,7 @@ void navUpdate() {
 
   switch (mode) {
     case MODE_AUTO:   updateAuto(d, cliff, now); break;
-    case MODE_MANUAL: updateManual(d, cliff);    break;
+    case MODE_MANUAL: updateManual(d, cliff, now); break;
     case MODE_IDLE:   break;
   }
 }
@@ -216,13 +226,15 @@ void navStop() {
   Serial.println("[NAV] Dung");
 }
 
-void navManual(ManualCmd cmd) {
+void navManual(ManualCmd cmd, uint32_t timeoutMs) {
   if (mode != MODE_MANUAL) {
     mode = MODE_MANUAL;
     setState(NAV_STOPPED);
     Serial.println("[NAV] Che do MANUAL");
   }
   manualCmd = cmd;
+  manualCmdMs = millis();
+  manualTimeoutMs = cmd == MANUAL_STOP ? 0 : timeoutMs;
 }
 
 RobotMode navGetMode()  { return mode; }
