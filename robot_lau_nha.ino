@@ -1,5 +1,6 @@
 // Robot hut bui / lau nha - ESP32 + L298N + 3x HC-SR04 + TCRT5000
 // Giai doan 1: di chuyen cham, tranh vat can va chong roi
+// Quat hut + 2 choi quet: 1 relay o D17, tu bat khi robot lam viec (xem cleaning.cpp)
 //
 // Lenh qua Serial Monitor (115200, gui tung ky tu):
 //   g : bat dau che do AUTO (tu di, tranh vat can)
@@ -18,6 +19,7 @@
 #include "battery.h"
 #include "wifi_manager.h"
 #include "mqtt_client.h"
+#include "cleaning.h"
 
 static bool debugEnabled = true;
 static uint32_t lastDebugMs = 0;
@@ -64,11 +66,11 @@ static void printDebug() {
 
   const Distances& d = sensorsGet();
   const CliffState& c = sensorsCliff();
-  Serial.printf("L=%5.1f C=%5.1f R=%5.1f cm | Roi=%s D0=%d | %s/%s | motor L=%4d R=%4d | Pin %.2fV %u%% | MQTT %s\n",
+  Serial.printf("L=%5.1f C=%5.1f R=%5.1f cm | Roi=%s D0=%d | %s/%s | motor L=%4d R=%4d | Choi %s | Pin %.2fV %u%% | MQTT %s\n",
                 d.left, d.center, d.right,
                 c.detected ? "CO" : "--", digitalRead(PIN_CLIFF_DO),
                 navModeName(navGetMode()), navStateName(navGetState()),
-                motorGetLeft(), motorGetRight(),
+                motorGetLeft(), motorGetRight(), cleaningIsOn() ? "ON" : "--",
                 batteryVoltage(), batteryPercent(), mqttConnected() ? "OK" : "--");
 }
 
@@ -99,6 +101,7 @@ void setup() {
   }
   rtcAutoMagic = 0;
 
+  cleaningInit();   // som nhat co the: dat relay ve TAT ngay sau khi khoi dong
   motorInit();
   sensorsInit();
   navInit();
@@ -121,6 +124,7 @@ void loop() {
   sensorsUpdate();
   batteryUpdate();
   navUpdate();
+  cleaningUpdate();
   motorUpdate();
   wifiUpdate();
   mqttUpdate();
