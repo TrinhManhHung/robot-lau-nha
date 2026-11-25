@@ -167,6 +167,13 @@
 #define TURN_MAX_MS     2000
 #define ESCAPE_TURN_MS  1500   // ~180 do, can chinh theo robot
 
+// --- Phu kin nha (che do AUTO) ---
+// Gap vat can -> quay NGAU NHIEN tu TURN_MIN_MS den AUTO_TURN_RANDOM_MAX_MS (va phia truoc phai thoang)
+// -> moi lan bat tuong 1 goc khac nhau, lau dan se phu het phong. Phai <= TURN_MAX_MS.
+#define AUTO_TURN_RANDOM_MAX_MS  1500   // ~180 do (= ESCAPE_TURN_MS)
+// Di thang lien tuc qua lau khong gap gi (phong trong) -> tu re ngau nhien. 0 = tat
+#define AUTO_STRAIGHT_MAX_MS     8000
+
 // Gap vat can STUCK_COUNT lan trong STUCK_WINDOW_MS -> coi nhu ket goc
 #define STUCK_COUNT      4
 #define STUCK_WINDOW_MS  6000

@@ -11,6 +11,8 @@ uint32_t stateStartMs = 0;
 
 TurnDir turnDir = TURN_RIGHT;
 bool escapeAfterBackup = false;
+// Thoi gian quay toi thieu cua lan NAV_TURN hien tai (AUTO: ngau nhien de phu kin nha)
+uint32_t turnTargetMs = TURN_MIN_MS;
 
 // Lan xu ly hien tai la do mep roi (khong phai vat can sieu am)
 bool cliffEvent = false;
@@ -69,6 +71,12 @@ bool frontClear(const Distances& d) {
          d.left > DIST_STOP_SIDE && d.right > DIST_STOP_SIDE;
 }
 
+// AUTO: goc quay ngau nhien de khong chay lap lai cung 1 duong. DOCK: quay vua du thoang.
+uint32_t pickTurnTime() {
+  if (mode != MODE_AUTO) return TURN_MIN_MS;
+  return random(TURN_MIN_MS, AUTO_TURN_RANDOM_MAX_MS + 1);
+}
+
 // Ne vat can xong (TURN/ESCAPE -> FORWARD). Khi ve dock: di thang them 1 doan truoc khi tim lai.
 void finishAvoid(uint32_t now) {
   motorBrake();
@@ -124,7 +132,21 @@ void updateAuto(const Distances& d, bool cliff, bool ir, uint32_t now) {
                       d.left, d.center, d.right,
                       turnDir == TURN_LEFT ? "TRAI" : "PHAI",
                       escapeAfterBackup ? " (KET GOC)" : "");
+        turnTargetMs = pickTurnTime();
         setState(NAV_BRAKE);
+        break;
+      }
+
+      // Phong trong: di thang qua lau -> re ngau nhien sang huong moi
+      if (mode == MODE_AUTO && AUTO_STRAIGHT_MAX_MS > 0 && elapsed >= AUTO_STRAIGHT_MAX_MS) {
+        motorBrake();
+        cliffEvent = false;
+        turnDir = random(2) ? TURN_LEFT : TURN_RIGHT;
+        turnTargetMs = pickTurnTime();
+        Serial.printf("[NAV] Di thang %d s khong gap gi -> re ngau nhien %s %u ms\n",
+                      AUTO_STRAIGHT_MAX_MS / 1000, turnDir == TURN_LEFT ? "TRAI" : "PHAI",
+                      (unsigned)turnTargetMs);
+        setState(NAV_TURN);
         break;
       }
 
@@ -165,7 +187,7 @@ void updateAuto(const Distances& d, bool cliff, bool ir, uint32_t now) {
           cliffEvent = false;
           finishAvoid(now);
         }
-      } else if ((elapsed >= TURN_MIN_MS && frontClear(d)) || elapsed >= TURN_MAX_MS) {
+      } else if ((elapsed >= turnTargetMs && frontClear(d)) || elapsed >= TURN_MAX_MS) {
         // Het TURN_MAX_MS ma van chua thoang: NAV_FORWARD se phat hien lai
         // va tiep tuc lui/quay; lap lai nhieu lan se kich hoat ESCAPE.
         if (!frontClear(d)) {
