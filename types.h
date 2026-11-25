@@ -16,6 +16,7 @@ enum RobotMode : uint8_t {
   MODE_IDLE,
   MODE_AUTO,
   MODE_MANUAL,
+  MODE_DOCK,     // ve dock theo den hong ngoai
 };
 
 enum NavState : uint8_t {
@@ -25,6 +26,7 @@ enum NavState : uint8_t {
   NAV_BACKUP,
   NAV_TURN,
   NAV_ESCAPE,
+  NAV_SEARCH,    // quay cham tim tin hieu IR cua dock
 };
 
 enum TurnDir : uint8_t {

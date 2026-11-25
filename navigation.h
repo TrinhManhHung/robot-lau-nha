@@ -7,6 +7,8 @@ void navInit();
 void navUpdate();
 
 void navStartAuto();
+// Ve dock: khong thay IR -> quay cham tim; thay IR -> di thang (van tranh vat can / chong roi)
+void navStartDock();
 void navStop();
 // timeoutMs > 0: lenh tu het hieu luc (dung banh) neu khong duoc goi lai trong khoang nay.
 // Dung cho dieu khien tu xa kieu nhan giu. 0 = giu lenh cho den khi co lenh khac.

@@ -11,3 +11,6 @@ const Distances& sensorsGet();
 
 // Trang thai cam bien chong roi TCRT5000. Duoc doc moi lan goi sensorsUpdate().
 const CliffState& sensorsCliff();
+
+// true neu mat thu VS1838B dang thay den IR cua dock (da loc nhieu)
+bool sensorsDockIr();

@@ -4,6 +4,7 @@
 //
 // Lenh qua Serial Monitor (115200, gui tung ky tu):
 //   g : bat dau che do AUTO (tu di, tranh vat can)
+//   h : ve dock (tim den IR cua dock bang VS1838B o D16)
 //   x : dung
 //   w/s/a/d : dieu khien tay tien / lui / trai / phai
 //   i : bat/tat in thong tin cam bien
@@ -32,6 +33,12 @@ static bool autoStartPending = AUTO_START_ON_BOOT;
 RTC_NOINIT_ATTR static uint32_t rtcAutoMagic;
 RTC_NOINIT_ATTR static uint32_t rtcResumeCount;
 
+// Che do tu chay khi bat nguon / sau reset bat thuong
+static void startDefaultMode() {
+  if (BOOT_MODE_DOCK) navStartDock();
+  else                navStartAuto();
+}
+
 static bool isAbnormalReset(esp_reset_reason_t r) {
   return r == ESP_RST_BROWNOUT || r == ESP_RST_PANIC ||
          r == ESP_RST_INT_WDT  || r == ESP_RST_TASK_WDT || r == ESP_RST_WDT;
@@ -42,6 +49,7 @@ static void handleSerial() {
     char c = Serial.read();
     switch (c) {
       case 'g': case 'G': autoStartPending = false; rtcResumeCount = 0; navStartAuto(); break;
+      case 'h': case 'H': autoStartPending = false; rtcResumeCount = 0; navStartDock(); break;
       case 'x': case 'X': autoStartPending = false; navStop();      break;
       case 'w': case 'W': navManual(MANUAL_FORWARD);  break;
       case 's': case 'S': navManual(MANUAL_BACKWARD); break;
@@ -66,9 +74,10 @@ static void printDebug() {
 
   const Distances& d = sensorsGet();
   const CliffState& c = sensorsCliff();
-  Serial.printf("L=%5.1f C=%5.1f R=%5.1f cm | Roi=%s D0=%d | %s/%s | motor L=%4d R=%4d | Choi %s | Pin %.2fV %u%% | MQTT %s\n",
+  Serial.printf("L=%5.1f C=%5.1f R=%5.1f cm | Roi=%s D0=%d | IR=%s | %s/%s | motor L=%4d R=%4d | Choi %s | Pin %.2fV %u%% | MQTT %s\n",
                 d.left, d.center, d.right,
                 c.detected ? "CO" : "--", digitalRead(PIN_CLIFF_DO),
+                sensorsDockIr() ? "CO" : "--",
                 navModeName(navGetMode()), navStateName(navGetState()),
                 motorGetLeft(), motorGetRight(), cleaningIsOn() ? "ON" : "--",
                 batteryVoltage(), batteryPercent(), mqttConnected() ? "OK" : "--");
@@ -110,7 +119,8 @@ void setup() {
   wifiInit();
   mqttInit(onRemoteCommand);
 
-  Serial.println("Lenh: g=AUTO, x=dung, w/s/a/d=dieu khien tay, i=bat/tat debug");
+  Serial.printf("Khi bat nguon se tu chay: %s\n", BOOT_MODE_DOCK ? "VE DOCK" : "AUTO");
+  Serial.println("Lenh: g=AUTO, h=ve dock, x=dung, w/s/a/d=dieu khien tay, i=bat/tat debug");
 }
 
 void loop() {
@@ -118,7 +128,7 @@ void loop() {
 
   if (autoStartPending && millis() >= AUTO_START_DELAY_MS) {
     autoStartPending = false;
-    navStartAuto();
+    startDefaultMode();
   }
 
   sensorsUpdate();
@@ -130,5 +140,5 @@ void loop() {
   mqttUpdate();
   printDebug();
 
-  rtcAutoMagic = navGetMode() == MODE_AUTO ? AUTO_MAGIC : 0;
+  rtcAutoMagic = (navGetMode() == MODE_AUTO || navGetMode() == MODE_DOCK) ? AUTO_MAGIC : 0;
 }

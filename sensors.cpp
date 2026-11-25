@@ -29,6 +29,35 @@ CliffState cliff = {false, false};
 uint8_t cliffHits = 0;
 uint32_t cliffLastActiveMs = 0;
 
+// --- IR dock (VS1838B) ---
+// Ngat dem so xung xuong (OUT keo LOW khi nhan cum 38 kHz). loop() dem moi cua so de loc nhieu.
+volatile uint32_t irEdges = 0;
+uint32_t irWindowStartMs = 0;
+uint32_t irLastSeenMs = 0;
+bool irSeen = false;
+bool irSeenLogged = false;
+
+void ARDUINO_ISR_ATTR onIrEdge() {
+  irEdges++;
+}
+
+void updateDockIr(uint32_t now) {
+  if (now - irWindowStartMs >= DOCK_IR_WINDOW_MS) {
+    irWindowStartMs = now;
+    noInterrupts();
+    uint32_t edges = irEdges;
+    irEdges = 0;
+    interrupts();
+    if (edges >= DOCK_IR_MIN_EDGES) irLastSeenMs = now ? now : 1;
+  }
+
+  irSeen = irLastSeenMs != 0 && now - irLastSeenMs < DOCK_IR_HOLD_MS;
+  if (irSeen != irSeenLogged) {
+    irSeenLogged = irSeen;
+    Serial.println(irSeen ? "[SENSOR] Thay den IR dock" : "[SENSOR] Mat den IR dock");
+  }
+}
+
 // Doc moi vong loop (khong gioi han tan suat) vi nguy co roi can phan ung nhanh nhat
 void updateCliff(uint32_t now) {
   cliff.raw = digitalRead(PIN_CLIFF_DO) == CLIFF_DO_ACTIVE_LEVEL;
@@ -81,11 +110,16 @@ void sensorsInit() {
 
   // Module da co dien tro keo len tren D0
   pinMode(PIN_CLIFF_DO, INPUT);
+
+  // VS1838B co ngo ra open-collector + tro keo len noi; them keo len trong cho chac
+  pinMode(PIN_IR_DOCK, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(PIN_IR_DOCK), onIrEdge, FALLING);
 }
 
 void sensorsUpdate() {
   uint32_t now = millis();
   updateCliff(now);
+  updateDockIr(now);
 
   if (now - lastMeasureMs < SONAR_INTERVAL_MS) return;
   lastMeasureMs = now;
@@ -112,4 +146,8 @@ const Distances& sensorsGet() {
 
 const CliffState& sensorsCliff() {
   return cliff;
+}
+
+bool sensorsDockIr() {
+  return irSeen;
 }

@@ -116,7 +116,7 @@ void publishTelemetry() {
   RobotMode m = navGetMode();
   JsonDocument doc;
   doc["batteryPercent"] = batteryPercent();
-  doc["status"] = m == MODE_IDLE ? "IDLE" : "WORKING";
+  doc["status"] = m == MODE_IDLE ? "IDLE" : m == MODE_DOCK ? "RETURNING_TO_DOCK" : "WORKING";
   if (m == MODE_AUTO)   doc["mode"] = "AUTO";
   if (m == MODE_MANUAL) doc["mode"] = "MANUAL";
   doc["sentAt"] = sentAt;
@@ -211,9 +211,9 @@ const char* applyCommand(const char* action, const char* mode, const char* dir, 
     return nullptr;
   }
   if (!strcmp(action, "RETURN_TO_DOCK")) {
-    navStop();
     finishCurrentTask();
-    return "docking not supported, robot stopped";
+    navStartDock();
+    return nullptr;
   }
   return "unknown action";
 }

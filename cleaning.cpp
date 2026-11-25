@@ -25,6 +25,7 @@ bool shouldClean() {
   switch (navGetMode()) {
     case MODE_AUTO:   return true;
     case MODE_MANUAL: return CLEANING_IN_MANUAL;
+    case MODE_DOCK:   return CLEANING_IN_DOCK;
     default:          return false;
   }
 }

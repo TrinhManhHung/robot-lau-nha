@@ -38,6 +38,10 @@
 // IN cua relay -> D17. VCC/GND relay -> nguon module + GND chung voi ESP32.
 #define PIN_CLEANING_RELAY 17
 
+// --- Mat thu hong ngoai VS1838B (tim duong ve dock) ---
+// OUT -> D16, VCC -> 3.3V, GND -> GND. Ngo ra muc THAP khi nhan duoc IR dieu che 38 kHz.
+#define PIN_IR_DOCK 16
+
 // ============================================================
 //  DONG CO
 // ============================================================
@@ -91,6 +95,8 @@
 // Muc logic tai IN lam relay DONG. Phan lon module relay 1 kenh co opto kich muc THAP (LOW);
 // module co jumper H/L thi theo vi tri jumper. Neu relay bat khi robot dung -> doi gia tri nay.
 #define CLEANING_RELAY_ACTIVE_LEVEL HIGH
+// Cong tac tong: false = relay LUON TAT o moi che do (de test di chuyen / ve dock)
+#define CLEANING_ENABLED     false
 // true: dieu khien tay (MANUAL) cung bat quat + choi; false: chi bat khi chay AUTO
 #define CLEANING_IN_MANUAL   true
 // Bat relay sau khi robot bat dau chay bay nhieu ms (khong de dong khoi dong cung luc voi banh xe)
@@ -166,6 +172,30 @@
 #define STUCK_WINDOW_MS  6000
 
 // ============================================================
+//  VE DOCK (theo den hong ngoai cua dock)
+// ============================================================
+// LUU Y: LED IR o dock PHAI phat dieu che 38 kHz theo tung CUM (vd: ma NEC lap lai, hoac
+// 38 kHz bat ~600 us / tat ~600 us). VS1838B KHONG nhan LED sang lien tuc (khong dieu che),
+// va se tu "tat" neu song mang 38 kHz phat lien tuc khong ngat quang.
+// Nen boc mat thu bang ong (ong hut / vo but den) huong ra truoc de robot chi thay dock khi nhin thang.
+
+// Moi cua so DOCK_IR_WINDOW_MS phai co it nhat DOCK_IR_MIN_EDGES xung thi coi la thay dock (loc nhieu)
+#define DOCK_IR_WINDOW_MS   100
+#define DOCK_IR_MIN_EDGES   3
+// Mat tin hieu lau hon thoi gian nay moi coi la mat dock
+#define DOCK_IR_HOLD_MS     300
+
+// Tim dock: quay tai cho LIEN TUC voi toc do nay (cham hon SPEED_TURN de khong quay lo dock).
+// Robot khong quay noi -> tang len; quay nhanh qua, hay quay lo dock -> giam (toi thieu = MOTOR_MIN_PWM)
+#define SPEED_SEARCH          55
+// Tim qua lau khong thay -> dung han (0 = tim mai mai)
+#define DOCK_SEARCH_TIMEOUT_MS 60000
+// Sau khi ne vat can, di thang them bay nhieu ms (du mat tin hieu) de vuot qua vat can roi moi tim lai
+#define DOCK_AFTER_AVOID_MS   1000
+// Bat quat hut + choi khi dang ve dock
+#define CLEANING_IN_DOCK      false
+
+// ============================================================
 //  WIFI / MQTT (backend) - SSID/mat khau WiFi nam trong secrets.h
 // ============================================================
 
@@ -193,5 +223,7 @@
 
 #define SERIAL_BAUD        115200
 #define DEBUG_INTERVAL_MS  500
-#define AUTO_START_ON_BOOT true    // true: tu chay AUTO sau khi bat nguon
+#define AUTO_START_ON_BOOT true    // true: tu chay sau khi bat nguon
+// Che do tu chay khi bat nguon: true = VE DOCK (de test), false = AUTO (hut bui)
+#define BOOT_MODE_DOCK     true
 #define AUTO_START_DELAY_MS 3000

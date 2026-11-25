@@ -25,6 +25,12 @@ uint32_t manualTimeoutMs = 0;
 uint32_t obstacleTimes[STUCK_COUNT] = {0};
 uint8_t obstacleIdx = 0;
 
+// --- Ve dock ---
+// Sau khi ne vat can: di thang toi thoi diem nay roi moi tim lai IR
+uint32_t dockGraceUntilMs = 0;
+// Tong thoi gian tim lien tuc (reset khi thay IR)
+uint32_t dockSearchStartMs = 0;
+
 void setState(NavState s) {
   if (s == state) return;
   state = s;
@@ -63,8 +69,24 @@ bool frontClear(const Distances& d) {
          d.left > DIST_STOP_SIDE && d.right > DIST_STOP_SIDE;
 }
 
-void updateAuto(const Distances& d, bool cliff, uint32_t now) {
+// Ne vat can xong (TURN/ESCAPE -> FORWARD). Khi ve dock: di thang them 1 doan truoc khi tim lai.
+void finishAvoid(uint32_t now) {
+  motorBrake();
+  if (mode == MODE_DOCK) dockGraceUntilMs = now + DOCK_AFTER_AVOID_MS;
+  setState(NAV_FORWARD);
+}
+
+void startSearch(uint32_t now) {
+  motorBrake();
+  if (dockSearchStartMs == 0) dockSearchStartMs = now ? now : 1;
+  setState(NAV_SEARCH);
+}
+
+// Dung chung cho AUTO (hut bui) va DOCK (ve dock): cung logic tranh vat can / chong roi
+void updateAuto(const Distances& d, bool cliff, bool ir, uint32_t now) {
   if (cliff) lastCliffMs = now;
+  bool docking = mode == MODE_DOCK;
+  if (docking && ir) dockSearchStartMs = 0;
 
   // Nguy co roi uu tien cao nhat: dung ngay o moi trang thai (tru khi dang phanh/lui ra xa mep)
   if (cliff && state != NAV_BRAKE && state != NAV_BACKUP) {
@@ -84,7 +106,8 @@ void updateAuto(const Distances& d, bool cliff, uint32_t now) {
 
   switch (state) {
     case NAV_STOPPED:
-      setState(NAV_FORWARD);
+      if (docking) startSearch(now);
+      else         setState(NAV_FORWARD);
       break;
 
     case NAV_FORWARD: {
@@ -102,6 +125,12 @@ void updateAuto(const Distances& d, bool cliff, uint32_t now) {
                       turnDir == TURN_LEFT ? "TRAI" : "PHAI",
                       escapeAfterBackup ? " (KET GOC)" : "");
         setState(NAV_BRAKE);
+        break;
+      }
+
+      // Mat tin hieu dock (va da het doan di thang sau khi ne vat can) -> dung lai quay tim
+      if (docking && !ir && (int32_t)(now - dockGraceUntilMs) >= 0) {
+        startSearch(now);
         break;
       }
 
@@ -133,9 +162,8 @@ void updateAuto(const Distances& d, bool cliff, uint32_t now) {
       if (cliffEvent) {
         // Sieu am thay phia truoc thoang ca khi do la mep roi -> quay du goc co dinh
         if (elapsed >= CLIFF_TURN_MS) {
-          motorBrake();
           cliffEvent = false;
-          setState(NAV_FORWARD);
+          finishAvoid(now);
         }
       } else if ((elapsed >= TURN_MIN_MS && frontClear(d)) || elapsed >= TURN_MAX_MS) {
         // Het TURN_MAX_MS ma van chua thoang: NAV_FORWARD se phat hien lai
@@ -144,20 +172,37 @@ void updateAuto(const Distances& d, bool cliff, uint32_t now) {
           Serial.printf("[NAV] Quay het %d ms van chua thoang L=%.0f C=%.0f R=%.0f\n",
                         TURN_MAX_MS, d.left, d.center, d.right);
         }
-        motorBrake();
-        setState(NAV_FORWARD);
+        finishAvoid(now);
       }
       break;
 
     case NAV_ESCAPE:
       spin(turnDir);
       if (elapsed >= ESCAPE_TURN_MS) {
-        motorBrake();
         // Lan sau doi huong de khong lap lai cung mot kieu thoat
         turnDir = turnDir == TURN_LEFT ? TURN_RIGHT : TURN_LEFT;
-        setState(NAV_FORWARD);
+        finishAvoid(now);
       }
       break;
+
+    case NAV_SEARCH: {
+      if (!docking) { setState(NAV_FORWARD); break; }
+      if (ir) {
+        motorBrake();
+        Serial.println("[NAV] Thay dock -> di thang");
+        dockGraceUntilMs = 0;
+        setState(NAV_FORWARD);
+        break;
+      }
+      if (DOCK_SEARCH_TIMEOUT_MS > 0 && now - dockSearchStartMs >= DOCK_SEARCH_TIMEOUT_MS) {
+        Serial.printf("[NAV] Tim %d s khong thay dock -> dung\n", DOCK_SEARCH_TIMEOUT_MS / 1000);
+        navStop();
+        return;
+      }
+      // Quay trai lien tuc, cham deu (chi kick 1 lan luc bat dau quay)
+      motorSet(-SPEED_SEARCH, SPEED_SEARCH);
+      break;
+    }
   }
 }
 
@@ -201,10 +246,12 @@ void navInit() {
 void navUpdate() {
   const Distances& d = sensorsGet();
   bool cliff = sensorsCliff().detected;
+  bool ir = sensorsDockIr();
   uint32_t now = millis();
 
   switch (mode) {
-    case MODE_AUTO:   updateAuto(d, cliff, now); break;
+    case MODE_AUTO:
+    case MODE_DOCK:   updateAuto(d, cliff, ir, now); break;
     case MODE_MANUAL: updateManual(d, cliff, now); break;
     case MODE_IDLE:   break;
   }
@@ -216,6 +263,18 @@ void navStartAuto() {
   memset(obstacleTimes, 0, sizeof(obstacleTimes));
   setState(NAV_FORWARD);
   Serial.println("[NAV] Che do AUTO");
+}
+
+void navStartDock() {
+  mode = MODE_DOCK;
+  cliffEvent = false;
+  memset(obstacleTimes, 0, sizeof(obstacleTimes));
+  dockGraceUntilMs = 0;
+  dockSearchStartMs = 0;
+  Serial.println("[NAV] Che do VE DOCK");
+  // Thay IR ngay -> di thang luon, khong thi quay tim
+  if (sensorsDockIr()) setState(NAV_FORWARD);
+  else                 startSearch(millis());
 }
 
 void navStop() {
@@ -248,6 +307,7 @@ const char* navStateName(NavState s) {
     case NAV_BACKUP:  return "BACKUP";
     case NAV_TURN:    return "TURN";
     case NAV_ESCAPE:  return "ESCAPE";
+    case NAV_SEARCH:  return "SEARCH";
   }
   return "?";
 }
@@ -257,6 +317,7 @@ const char* navModeName(RobotMode m) {
     case MODE_IDLE:   return "IDLE";
     case MODE_AUTO:   return "AUTO";
     case MODE_MANUAL: return "MANUAL";
+    case MODE_DOCK:   return "DOCK";
   }
   return "?";
 }
